@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="12dp"
+    android:background="#f0f0f0">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:spacing="12dp">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:spacing="8dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📡 Frequenzy Monitor V26"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a1a" />
+            <ToggleButton
+                android:id="@+id/alarmToggle"
+                android:layout_width="50dp"
+                android:layout_height="wrap_content"
+                android:textOn="🔔"
+                android:textOff="🔕"
+                android:checked="true" />
+            <ToggleButton
+                android:id="@+id/muteButton"
+                android:layout_width="50dp"
+                android:layout_height="wrap_content"
+                android:textOn="🔇"
+                android:textOff="🔊" />
+        </LinearLayout>
+
+        <!-- Status Display -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:background="@drawable/status_background"
+            android:padding="12dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/statusText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Ready"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#000" />
+                <TextView
+                    android:id="@+id/frequencyText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Range: 380 - 385 MHz"
+                    android:textSize="13sp"
+                    android:textColor="#333" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Signal Display -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:spacing="6dp"
+            android:padding="12dp"
+            android:background="#ffffff"
+            android:backgroundTint="#e8f5e9">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📊 Signal Strength"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/signalText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Current: -- dBm"
+                android:textSize="13sp" />
+            <ProgressBar
+                android:id="@+id/signalBar"
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:max="255"
+                android:progress="0"
+                android:progressDrawable="@drawable/signal_bar" />
+            <TextView
+                android:id="@+id/peakFrequencyText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Peak: -- MHz | -- dBm"
+                android:textSize="12sp"
+                android:textColor="#d32f2f" />
+        </LinearLayout>
+
+        <!-- Progress Bar -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/progress_bar" />
+
+        <!-- Scan Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:spacing="8dp">
+            <Button
+                android:id="@+id/scanButton"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:text="▶️ START SCAN"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:backgroundTint="#4CAF50" />
+            <Button
+                android:id="@+id/stopButton"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:text="⏹️ STOP"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:enabled="false"
+                android:backgroundTint="#f44336" />
+        </LinearLayout>
+
+        <!-- Settings -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:spacing="8dp"
+            android:padding="12dp"
+            android:background="#ffffff">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⚙️ Configuration"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:spacing="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Start Freq (MHz):"
+                    android:textSize="12sp" />
+                <EditText
+                    android:id="@+id/startFreqEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="380"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:spacing="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Stop Freq (MHz):"
+                    android:textSize="12sp" />
+                <EditText
+                    android:id="@+id/stopFreqEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="385"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:spacing="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Threshold (dBm):"
+                    android:textSize="12sp" />
+                <EditText
+                    android:id="@+id/thresholdEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberSigned|numberDecimal"
+                    android:text="-50"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:spacing="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Step (KHz):"
+                    android:textSize="12sp" />
+                <EditText
+                    android:id="@+id/stepEdit"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="100"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/saveButton"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="💾 SAVE SETTINGS"
+                android:textSize="12sp"
+                android:backgroundTint="#2196F3" />
+        </LinearLayout>
+
+        <!-- Footer -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="v2.6 | Fast Frequency Scanner | USB-C SDR"
+            android:textSize="10sp"
+            android:gravity="center"
+            android:textColor="#999"
+            android:paddingTop="8dp" />
+
+    </LinearLayout>
+</ScrollView>
