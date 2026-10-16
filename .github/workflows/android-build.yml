@@ -1,3 +1,31 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Repo auschecken
+      uses: actions/checkout@v4
+
+    - name: JDK 17 einrichten
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
     - name: Debug APK bauen
-      run: gradle -p MySDRAp
-      p assembleDebug --stacktrace
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace
+
+    - name: APK als Artifact hochladen
+      uses: actions/upload-artifact@v4
+      with:
+        name: FrequenzyMonitor2.0-Debug-APK
+        path: "**/build/outputs/apk/debug/*.apk"
