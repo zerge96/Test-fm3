@@ -19,61 +19,8 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Debug APK bauen (immer Gradle Wrapper verwenden)
-      run: |
-        set -euo pipefail
-        echo "Workspace contents:"
-        ls -la
-
-        # Normalize the wrapper script in case it was checked out with CRLF line endings.
-        # This prevents the POSIX shell parser from failing with "Unterminated quoted string".
-        if [ -f "./gradlew" ]; then
-          echo "Normalizing gradlew line endings"
-          sed -i 's/\r$//' ./gradlew || true
-          chmod +x ./gradlew || true
-          ls -l ./gradlew
-        fi
-
-        # Regenerate the Gradle wrapper if the required wrapper files are missing.
-        if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-          echo "Gradle wrapper missing — generating wrapper using Gradle 8.6"
-          curl -fsSLo gradle-8.6-bin.zip https://services.gradle.org/distributions/gradle-8.6-bin.zip
-          unzip -q gradle-8.6-bin.zip -d /tmp
-          /tmp/gradle-8.6/bin/gradle wrapper --gradle-version 8.6
-          rm -f gradle-8.6-bin.zip
-        fi
-
-        # Require the Gradle wrapper and fail clearly if it is absent.
-        if [ -x "./gradlew" ]; then
-          echo "Using Gradle wrapper"
-          ./gradlew :MySDRApp:assembleDebug --no-daemon --stacktrace --info --warning-mode all || RC=$?
-        else
-          echo "ERROR: Gradle wrapper (./gradlew and gradle/wrapper/*) not found in the repository."
-          echo "Please commit the Gradle wrapper files (gradlew, gradlew.bat, gradle/wrapper/gradle-wrapper.jar and gradle/wrapper/gradle-wrapper.properties)."
-          echo "You can generate them locally with: gradle wrapper --gradle-version 8.6"
-          RC=1
-        fi
-
-        # On failure, collect reports if present and exit with the build return code
-        if [ -n "${RC:-}" ] && [ "${RC}" -ne 0 ]; then
-          echo "Build failed with code $RC — collecting reports"
-          if [ -d "build/reports" ]; then
-            tar -czf reports.tar.gz build/reports || true
-            ls -la build/reports || true
-          fi
-          if [ -f "build/reports/problems/problems-report.html" ]; then
-            echo "==== problems-report.html (erste 300 Zeilen) ===="
-            sed -n '1,300p' build/reports/problems/problems-report.html || true
-          fi
-          exit $RC
-        fi
-
-    - name: Upload build reports
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: gradle-reports
-        path: reports.tar.gz
+    - name: Debug APK bauen
+      run: gradle -p MySDRApp assembleDebug --no-daemon
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
