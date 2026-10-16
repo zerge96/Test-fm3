@@ -21,13 +21,67 @@ jobs:
 
     - name: Debug APK bauen (use Gradle wrapper if available, fallback to system gradle)
       run: |
-        if [ -x "./gradlew" ]; then
-          echo "Using Gradle wrapper"
-          ./gradlew :MySDRApp:assembleDebug --no-daemon
-        else
-          echo "Gradle wrapper not found, falling back to system gradle"
-          gradle -p MySDRApp assembleDebug --no-daemon
+        set -euo pipefail
+        echo "Workspace contents:"
+        ls -la
+
+        # Ensure wrapper is executable if present
+        if [ -f "./gradlew" ]; then
+          chmod +x ./gradlew || true
         fi
+
+        # If gradle-wrapper.jar is missing, try to generate a wrapper using system gradle (install if needed)
+        if [ -f "./gradle/wrapper/gradle-wrapper.jar" ]; then
+          WRAPPER_OK=true
+        else
+          WRAPPER_OK=false
+        fi
+
+        # If wrapper missing and system gradle not found, install gradle via apt as a fallback
+        if [ "${WRAPPER_OK}" = false ] && ! command -v gradle >/dev/null 2>&1; then
+          echo "gradle-wrapper.jar missing and system gradle not found — installing gradle via apt"
+          sudo apt-get update && sudo apt-get install -y gradle || true
+        fi
+
+        # If wrapper still missing but system gradle available, attempt to generate wrapper
+        if [ "${WRAPPER_OK}" = false ] && command -v gradle >/dev/null 2>&1; then
+          echo "Generating Gradle wrapper using system gradle"
+          gradle wrapper --gradle-version 8.6 || true
+          if [ -f "./gradle/wrapper/gradle-wrapper.jar" ]; then
+            WRAPPER_OK=true
+            chmod +x ./gradlew || true
+          fi
+        fi
+
+        # Run build: prefer wrapper if usable, otherwise use system gradle
+        if [ "${WRAPPER_OK}" = true ] && [ -x "./gradlew" ]; then
+          echo "Using Gradle wrapper"
+          ./gradlew :MySDRApp:assembleDebug --no-daemon --stacktrace --info --warning-mode all || RC=$?
+        else
+          echo "Using system gradle (project root or -p MySDRApp)"
+          gradle -p MySDRApp assembleDebug --no-daemon --stacktrace --info --warning-mode all || RC=$?
+        fi
+
+        # On failure, collect reports if present and exit with the build return code
+        if [ -n "${RC:-}" ] && [ "${RC}" -ne 0 ]; then
+          echo "Build failed with code $RC — collecting reports"
+          if [ -d "build/reports" ]; then
+            tar -czf reports.tar.gz build/reports || true
+            ls -la build/reports || true
+          fi
+          if [ -f "build/reports/problems/problems-report.html" ]; then
+            echo "==== problems-report.html (erste 300 Zeilen) ===="
+            sed -n '1,300p' build/reports/problems/problems-report.html || true
+          fi
+          exit $RC
+        fi
+
+    - name: Upload build reports
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: gradle-reports
+        path: reports.tar.gz
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
