@@ -20,7 +20,7 @@ jobs:
         java-version: '17'
 
     - name: Debug APK bauen
-      run: gradle -p MySDRApp assembleDebug --stacktrace
+      run: gradle -p MySDRApp assembleDebug --info --stacktrace
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
