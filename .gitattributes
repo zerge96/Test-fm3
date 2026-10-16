@@ -1,0 +1,4 @@
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+gradle/wrapper/** text eol=lf
+*.sh text eol=lf
