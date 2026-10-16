@@ -19,8 +19,15 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Debug APK bauen
-      run: ./gradlew :MySDRApp:assembleDebug --no-daemon
+    - name: Debug APK bauen (use Gradle wrapper if available, fallback to system gradle)
+      run: |
+        if [ -x "./gradlew" ]; then
+          echo "Using Gradle wrapper"
+          ./gradlew :MySDRApp:assembleDebug --no-daemon
+        else
+          echo "Gradle wrapper not found, falling back to system gradle"
+          gradle -p MySDRApp assembleDebug --no-daemon
+        fi
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
