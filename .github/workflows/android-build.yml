@@ -20,10 +20,10 @@ jobs:
         java-version: '11'
 
     - name: Gradlew Ausführungsrechte erteilen
-      run: chmod +x gradlew
+      run: chmod +x MySDRApp/gradlew
 
     - name: Debug APK bauen
-      run: ./gradlew :MySDRApp:assembleDebug
+      run: ./MySDRApp/gradlew -p MySDRApp assembleDebug
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
