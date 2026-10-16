@@ -1,0 +1,70 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Repo auschecken
+      uses: actions/checkout@v4
+
+    - name: JDK 17 einrichten
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Debug APK bauen (immer Gradle Wrapper verwenden)
+      run: |
+        set -euo pipefail
+        echo "Workspace contents:"
+        ls -la
+
+        # Ensure wrapper is executable if present
+        if [ -f "./gradlew" ]; then
+          chmod +x ./gradlew || true
+        fi
+
+        # Require the Gradle wrapper — do not fall back to system gradle
+        if [ -x "./gradlew" ]; then
+          echo "Using Gradle wrapper"
+          ./gradlew :MySDRApp:assembleDebug --no-daemon --stacktrace --info --warning-mode all || RC=$?
+        else
+          echo "ERROR: Gradle wrapper (./gradlew and gradle/wrapper/*) not found in the repository."
+          echo "Please commit the Gradle wrapper files (gradlew, gradlew.bat, gradle/wrapper/gradle-wrapper.jar and gradle/wrapper/gradle-wrapper.properties)."
+          echo "You can generate them locally with: gradle wrapper --gradle-version 8.6"
+          # Provide a helpful exit code so the workflow fails clearly
+          RC=1
+        fi
+
+        # On failure, collect reports if present and exit with the build return code
+        if [ -n "${RC:-}" ] && [ "${RC}" -ne 0 ]; then
+          echo "Build failed with code $RC — collecting reports"
+          if [ -d "build/reports" ]; then
+            tar -czf reports.tar.gz build/reports || true
+            ls -la build/reports || true
+          fi
+          if [ -f "build/reports/problems/problems-report.html" ]; then
+            echo "==== problems-report.html (erste 300 Zeilen) ===="
+            sed -n '1,300p' build/reports/problems/problems-report.html || true
+          fi
+          exit $RC
+        fi
+
+    - name: Upload build reports
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: gradle-reports
+        path: reports.tar.gz
+
+    - name: APK als Artifact hochladen
+      uses: actions/upload-artifact@v4
+      with:
+        name: FrequenzyMonitor2.0-Debug-APK
+        path: "**/build/outputs/apk/debug/*.apk"
