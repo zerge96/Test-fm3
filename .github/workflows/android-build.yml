@@ -30,6 +30,17 @@ jobs:
           chmod +x ./gradlew || true
         fi
 
+        # If the wrapper JAR is missing, generate the wrapper on the runner by downloading Gradle 8.6
+        if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          echo "gradle-wrapper.jar missing — generating wrapper using Gradle 8.6"
+          echo "Downloading Gradle 8.6..."
+          curl -sSLo gradle-8.6-bin.zip https://services.gradle.org/distributions/gradle-8.6-bin.zip
+          unzip -q gradle-8.6-bin.zip -d /tmp
+          # Use the downloaded Gradle to generate wrapper files
+          /tmp/gradle-8.6/bin/gradle wrapper --gradle-version 8.6 || true
+          rm -f gradle-8.6-bin.zip
+        fi
+
         # Require the Gradle wrapper — do not fall back to system gradle
         if [ -x "./gradlew" ]; then
           echo "Using Gradle wrapper"
