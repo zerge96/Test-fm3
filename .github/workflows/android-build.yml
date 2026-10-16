@@ -19,15 +19,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-
-    - name: local.properties erstellen
-      run: echo "sdk.dir=/usr/local/lib/android/sdk" > MySDRApp/local.properties
+    - name: Gradlew Ausführungsrechte erteilen
+      run: chmod +x gradlew
 
     - name: Debug APK bauen
-      run: gradle assembleDebug
-      working-directory: MySDRApp
+      run: ./gradlew :MySDRApp:assembleDebug
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
