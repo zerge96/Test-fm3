@@ -19,8 +19,13 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Passende Gradle-Version bereitstellen
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.1.1'
+
     - name: Debug APK bauen
-      run: gradle -p MySDRApp assembleDebug --no-daemon
+      run: gradle -p MySDRApp assembleDebug
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
