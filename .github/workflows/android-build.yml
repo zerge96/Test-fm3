@@ -25,23 +25,25 @@ jobs:
         echo "Workspace contents:"
         ls -la
 
-        # Ensure wrapper is executable if present
+        # Normalize the wrapper script in case it was checked out with CRLF line endings.
+        # This prevents the POSIX shell parser from failing with "Unterminated quoted string".
         if [ -f "./gradlew" ]; then
+          echo "Normalizing gradlew line endings"
+          sed -i 's/\r$//' ./gradlew || true
           chmod +x ./gradlew || true
+          ls -l ./gradlew
         fi
 
-        # If the wrapper JAR is missing, generate the wrapper on the runner by downloading Gradle 8.6
-        if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-          echo "gradle-wrapper.jar missing — generating wrapper using Gradle 8.6"
-          echo "Downloading Gradle 8.6..."
-          curl -sSLo gradle-8.6-bin.zip https://services.gradle.org/distributions/gradle-8.6-bin.zip
+        # Regenerate the Gradle wrapper if the required wrapper files are missing.
+        if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+          echo "Gradle wrapper missing — generating wrapper using Gradle 8.6"
+          curl -fsSLo gradle-8.6-bin.zip https://services.gradle.org/distributions/gradle-8.6-bin.zip
           unzip -q gradle-8.6-bin.zip -d /tmp
-          # Use the downloaded Gradle to generate wrapper files
-          /tmp/gradle-8.6/bin/gradle wrapper --gradle-version 8.6 || true
+          /tmp/gradle-8.6/bin/gradle wrapper --gradle-version 8.6
           rm -f gradle-8.6-bin.zip
         fi
 
-        # Require the Gradle wrapper — do not fall back to system gradle
+        # Require the Gradle wrapper and fail clearly if it is absent.
         if [ -x "./gradlew" ]; then
           echo "Using Gradle wrapper"
           ./gradlew :MySDRApp:assembleDebug --no-daemon --stacktrace --info --warning-mode all || RC=$?
@@ -49,7 +51,6 @@ jobs:
           echo "ERROR: Gradle wrapper (./gradlew and gradle/wrapper/*) not found in the repository."
           echo "Please commit the Gradle wrapper files (gradlew, gradlew.bat, gradle/wrapper/gradle-wrapper.jar and gradle/wrapper/gradle-wrapper.properties)."
           echo "You can generate them locally with: gradle wrapper --gradle-version 8.6"
-          # Provide a helpful exit code so the workflow fails clearly
           RC=1
         fi
 
