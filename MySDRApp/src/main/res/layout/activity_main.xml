@@ -23,18 +23,20 @@
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/alarm_btn"
+        <ToggleButton
+            android:id="@+id/alarmToggle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔔"
+            android:textOn="🔔"
+            android:textOff="🔔"
             android:textSize="16sp" />
 
-        <Button
-            android:id="@+id/mute_btn"
+        <ToggleButton
+            android:id="@+id/muteButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔊"
+            android:textOn="🔊"
+            android:textOff="🔊"
             android:textSize="16sp"
             android:layout_marginStart="4dp" />
     </LinearLayout>
@@ -54,7 +56,7 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/status_text"
+            android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Ready"
@@ -69,7 +71,7 @@
             android:layout_marginTop="8dp" />
 
         <TextView
-            android:id="@+id/range_text"
+            android:id="@+id/frequencyText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="380 - 385 MHz"
@@ -92,14 +94,14 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/current_signal"
+            android:id="@+id/signalText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Current: -65.2 dBm"
             android:layout_marginTop="8dp" />
 
         <ProgressBar
-            android:id="@+id/signal_bar"
+            android:id="@+id/signalBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -107,7 +109,7 @@
             style="?android:attr/progressBarStyleHorizontal" />
 
         <TextView
-            android:id="@+id/peak_freq"
+            android:id="@+id/peakFrequencyText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Peak: 382.45 MHz | -45 dBm"
@@ -129,7 +131,7 @@
             android:textStyle="bold" />
 
         <ProgressBar
-            android:id="@+id/scan_progress"
+            android:id="@+id/progressBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -137,7 +139,7 @@
             style="?android:attr/progressBarStyleHorizontal" />
 
         <TextView
-            android:id="@+id/progress_text"
+            android:id="@+id/progressText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="0%"
@@ -155,7 +157,7 @@
         android:gravity="center">
 
         <Button
-            android:id="@+id/start_btn"
+            android:id="@+id/scanButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -163,7 +165,7 @@
             android:textSize="16sp" />
 
         <Button
-            android:id="@+id/stop_btn"
+            android:id="@+id/stopButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -198,7 +200,7 @@
                 android:layout_marginTop="12dp" />
 
             <EditText
-                android:id="@+id/start_freq"
+                android:id="@+id/startFreqEdit"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="numberDecimal"
@@ -211,7 +213,7 @@
                 android:layout_marginTop="12dp" />
 
             <EditText
-                android:id="@+id/stop_freq"
+                android:id="@+id/stopFreqEdit"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="numberDecimal"
@@ -224,7 +226,7 @@
                 android:layout_marginTop="12dp" />
 
             <EditText
-                android:id="@+id/threshold_value"
+                android:id="@+id/thresholdEdit"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="numberSigned"
@@ -237,20 +239,20 @@
                 android:layout_marginTop="12dp" />
 
             <EditText
-                android:id="@+id/step_value"
+                android:id="@+id/stepEdit"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="number"
                 android:text="100" />
 
             <SeekBar
-                android:id="@+id/volume_control"
+                android:id="@+id/volumeControl"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp" />
 
             <Button
-                android:id="@+id/save_btn"
+                android:id="@+id/saveButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="💾 SAVE"
