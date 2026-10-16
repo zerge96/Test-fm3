@@ -19,8 +19,15 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Gradle Wrapper initialisieren
+      run: |
+        cd MySDRApp
+        gradle wrapper --gradle-version 8.1.1
+
     - name: Debug APK bauen
-      run: gradle -p MySDRApp assembleDebug --info --stacktrace
+      run: |
+        cd MySDRApp
+        ./gradlew assembleDebug
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
