@@ -1,2 +1,3 @@
     - name: Debug APK bauen
-      run: gradle -p MySDRApp assembleDebug --stacktrace
+      run: gradle -p MySDRAp
+      p assembleDebug --stacktrace
