@@ -11,10 +11,10 @@ jobs:
 
     steps:
     - name: Repo auschecken
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: JDK 11 einrichten
-      uses: actions/setup-java@v3
+      uses: setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '11'
@@ -26,7 +26,7 @@ jobs:
       run: ./gradlew :MySDRApp:assembleDebug
 
     - name: APK als Artifact hochladen
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: FrequenzyMonitor2.0-Debug-APK
         path: MySDRApp/build/outputs/apk/debug/*.apk
