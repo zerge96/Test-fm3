@@ -19,6 +19,9 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Android SDK Pfad setzen
+      run: echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
