@@ -19,14 +19,14 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Gradlew Ausführungsrechte erteilen
-      run: chmod +x gradlew
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
     - name: Debug APK bauen
-      run: ./gradlew :MySDRApp:assembleDebug
+      run: gradle assembleDebug
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
       with:
         name: FrequenzyMonitor2.0-Debug-APK
-        path: MySDRApp/build/outputs/apk/debug/*.apk
+        path: "**/build/outputs/apk/debug/*.apk"
