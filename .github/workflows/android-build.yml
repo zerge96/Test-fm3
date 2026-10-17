@@ -18,9 +18,22 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '17'
+        cache: gradle
+
+    - name: Android SDK einrichten
+      uses: android-actions/setup-android@v3
+
+    - name: Android SDK-Komponenten installieren
+      shell: bash
+      run: |
+        yes | sdkmanager --licenses
+        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.3"
 
     - name: Debug APK bauen
-      run: gradle -p MySDRApp assembleDebug
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+      run: ./gradlew :MySDRApp:assembleDebug --no-daemon --stacktrace
 
     - name: APK als Artifact hochladen
       uses: actions/upload-artifact@v4
