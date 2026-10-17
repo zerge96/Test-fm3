@@ -22,12 +22,15 @@ jobs:
 
     - name: Android SDK einrichten
       uses: android-actions/setup-android@v3
+      with:
+        api-level: 33
+        components: |
+          platform-tools
+          cmdline-tools;latest
+          build-tools;33.0.3
 
-    - name: Android SDK-Komponenten installieren
-      shell: bash
-      run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.3"
+    - name: Persistiere ANDROID_SDK_ROOT für nachfolgende Schritte
+      run: echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}" >> $GITHUB_ENV
 
     - name: Debug APK bauen
       env:
