@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'com.example.frequencymonitor'
-    compileSdk 34
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.example.frequencymonitor"
-        minSdk 26
-        targetSdk 34
+        minSdk 21
+        targetSdk 33
         versionCode 26
         versionName "2.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -29,7 +29,7 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
