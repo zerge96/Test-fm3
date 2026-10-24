@@ -18,9 +18,11 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,15 +47,19 @@ public class MainActivity extends Activity {
     private TextView peakFrequencyText;
     private ProgressBar progressBar;
     private ProgressBar signalBar;
-    
+
     private EditText startFreqEdit;
     private EditText stopFreqEdit;
     private EditText thresholdEdit;
     private EditText stepEdit;
-    
+
     private Button scanButton;
     private Button stopButton;
     private Button saveButton;
+    private Button deviceButton;
+    private Button presetButton;
+    private Button settingsButton;
+    private Button aboutButton;
     private ToggleButton muteButton;
     private ToggleButton alarmToggle;
 
@@ -65,11 +71,11 @@ public class MainActivity extends Activity {
     private long stopFrequency = DEFAULT_STOP_FREQ;
     private float alarmThreshold = DEFAULT_ALARM_THRESHOLD;
     private int scanStepKHz = SCAN_STEP_KHZ;
-    
+
     // Peak tracking
     private float peakSignal = -100.0f;
     private long peakFrequency = startFrequency;
-    private List<Float> signalHistory = new ArrayList<>();
+    private final List<Float> signalHistory = new ArrayList<>();
     private static final int MAX_HISTORY = 50;
 
     // Audio
@@ -89,16 +95,16 @@ public class MainActivity extends Activity {
 
         handler = new Handler(Looper.getMainLooper());
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        
+
         initializeUI();
         loadPreferences();
         checkPermissions();
         initializeAudio();
         connectToUSB();
+        updateFrequencyDisplay();
     }
 
     private void initializeUI() {
-        // Status Display
         statusText = findViewById(R.id.statusText);
         frequencyText = findViewById(R.id.frequencyText);
         signalText = findViewById(R.id.signalText);
@@ -106,27 +112,32 @@ public class MainActivity extends Activity {
         progressBar = findViewById(R.id.progressBar);
         signalBar = findViewById(R.id.signalBar);
 
-        // Input fields
         startFreqEdit = findViewById(R.id.startFreqEdit);
         stopFreqEdit = findViewById(R.id.stopFreqEdit);
         thresholdEdit = findViewById(R.id.thresholdEdit);
         stepEdit = findViewById(R.id.stepEdit);
 
-        // Buttons
         scanButton = findViewById(R.id.scanButton);
         stopButton = findViewById(R.id.stopButton);
         saveButton = findViewById(R.id.saveButton);
         muteButton = findViewById(R.id.muteButton);
         alarmToggle = findViewById(R.id.alarmToggle);
+        deviceButton = findViewById(R.id.deviceButton);
+        presetButton = findViewById(R.id.presetButton);
+        settingsButton = findViewById(R.id.settingsButton);
+        aboutButton = findViewById(R.id.aboutButton);
 
-        // Set button listeners
         scanButton.setOnClickListener(v -> startFrequencyScan());
         stopButton.setOnClickListener(v -> stopFrequencyScan());
         saveButton.setOnClickListener(v -> saveSettings());
         muteButton.setOnCheckedChangeListener((buttonView, isChecked) -> toggleMute(isChecked));
         alarmToggle.setOnCheckedChangeListener((buttonView, isChecked) -> alarmEnabled = isChecked);
 
-        // Set defaults
+        deviceButton.setOnClickListener(v -> showToast("Gerätesteuerung: USB- und SD-Status werden hier überwacht."));
+        presetButton.setOnClickListener(v -> applyPreset("FM 88-108 MHz"));
+        settingsButton.setOnClickListener(v -> showToast("Einstellungen: mehr Optionen werden hier ergänzt."));
+        aboutButton.setOnClickListener(v -> showToast("Frequenzy Monitor: experimenteller SDR-Builder"));
+
         updateUIValues();
         updateUI();
     }
@@ -160,10 +171,10 @@ public class MainActivity extends Activity {
             editor.putInt("step", scanStepKHz);
             editor.apply();
 
-            Toast.makeText(this, "✅ Settings saved", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "✅ Einstellungen gespeichert", Toast.LENGTH_SHORT).show();
             updateFrequencyDisplay();
         } catch (NumberFormatException e) {
-            Toast.makeText(this, "❌ Invalid input", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "❌ Ungültige Eingabe", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -189,32 +200,41 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+                if (usbManager == null) {
+                    runOnUiThread(() -> statusText.setText("❌ USB-Manager nicht verfügbar"));
+                    return;
+                }
+
                 for (UsbDevice device : usbManager.getDeviceList().values()) {
                     if (isRTLSDR(device)) {
                         rtlsdrDevice = new RTLSDRDevice(device, usbManager, this);
                         if (rtlsdrDevice.connect()) {
                             isConnected = true;
-                            runOnUiThread(() -> statusText.setText("✅ SDR Connected"));
-                            Log.d(TAG, "SDR Device connected");
+                            runOnUiThread(() -> {
+                                statusText.setText("✅ SDR erkannt");
+                                frequencyText.setText(String.format("Gerät: %s\nBereich: %.0f - %.0f MHz", device.getDeviceName(), startFrequency / 1_000_000.0, stopFrequency / 1_000_000.0));
+                            });
+                            Log.d(TAG, "SDR device connected: " + device.getDeviceName());
                             return;
                         }
                     }
                 }
-                runOnUiThread(() -> statusText.setText("❌ SDR Not Found"));
+                runOnUiThread(() -> statusText.setText("❌ Kein kompatibles SDR gefunden"));
             } catch (Exception e) {
                 Log.e(TAG, "USB connection error", e);
+                runOnUiThread(() -> statusText.setText("❌ USB-Verbindung fehlgeschlagen"));
             }
         }).start();
     }
 
     private boolean isRTLSDR(UsbDevice device) {
-        return (device.getVendorId() == 0x0bda && 
-               (device.getProductId() == 0x2832 || device.getProductId() == 0x2838));
+        return (device.getVendorId() == 0x0bda &&
+                (device.getProductId() == 0x2832 || device.getProductId() == 0x2838 || device.getProductId() == 0x2880 || device.getProductId() == 0x2881 || device.getProductId() == 0x2882 || device.getProductId() == 0x2883));
     }
 
     private void startFrequencyScan() {
         if (!isConnected || rtlsdrDevice == null) {
-            Toast.makeText(this, "❌ SDR not connected", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "❌ SDR nicht verbunden", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -223,10 +243,10 @@ public class MainActivity extends Activity {
         peakFrequency = startFrequency;
         signalHistory.clear();
         updateUI();
-        statusText.setText("🔍 Scanning...");
+        statusText.setText("🔍 Scan läuft...");
         progressBar.setProgress(0);
 
-        new Thread(() -> performFrequencyScan()).start();
+        new Thread(this::performFrequencyScan).start();
     }
 
     private void performFrequencyScan() {
@@ -237,13 +257,12 @@ public class MainActivity extends Activity {
             long frequencyRange = stopFrequency - startFrequency;
             long frequencyStepHz = scanStepKHz * 1000L;
             int totalSteps = (int) (frequencyRange / frequencyStepHz) + 1;
-            long timePerStep = Math.max(5, SCAN_TIMEOUT_MS / totalSteps); // Minimum 5ms per step
+            long timePerStep = Math.max(5, SCAN_TIMEOUT_MS / totalSteps);
 
             int currentStep = 0;
             for (long freq = startFrequency; freq <= stopFrequency && isScanning; freq += frequencyStepHz) {
                 rtlsdrDevice.setCenterFrequency(freq);
 
-                // Take multiple samples
                 float maxSignal = -100.0f;
                 for (int i = 0; i < SAMPLES_PER_FREQ && isScanning; i++) {
                     float signal = rtlsdrDevice.readSignalStrength();
@@ -251,7 +270,6 @@ public class MainActivity extends Activity {
                     Thread.sleep(Math.max(1, timePerStep / SAMPLES_PER_FREQ));
                 }
 
-                // Track peak
                 if (maxSignal > peakSignal) {
                     peakSignal = maxSignal;
                     peakFrequency = freq;
@@ -262,20 +280,17 @@ public class MainActivity extends Activity {
                     signalHistory.remove(0);
                 }
 
-                // Update progress
                 final int progress = (int) ((float) currentStep / totalSteps * 100);
                 final float signal = maxSignal;
                 runOnUiThread(() -> {
                     progressBar.setProgress(progress);
-                    signalText.setText(String.format("Current: %.1f dBm", signal));
+                    signalText.setText(String.format("Aktuell: %.1f dBm", signal));
                     updateSignalBar(signal);
                 });
 
-                // Check alarm
                 if (maxSignal > alarmThreshold && alarmEnabled && !isMuted) {
                     playAlarm();
-                    runOnUiThread(() -> statusText.setText(String.format(
-                            "⚠️ ALARM: %.1f dBm @ %.2f MHz", maxSignal, freq / 1_000_000.0)));
+                    runOnUiThread(() -> statusText.setText(String.format("⚠️ Alarm: %.1f dBm @ %.2f MHz", maxSignal, freq / 1_000_000.0)));
                 }
 
                 currentStep++;
@@ -287,7 +302,7 @@ public class MainActivity extends Activity {
 
         } catch (Exception e) {
             Log.e(TAG, "Scan error", e);
-            runOnUiThread(() -> statusText.setText("❌ Scan error: " + e.getMessage()));
+            runOnUiThread(() -> statusText.setText("❌ Scan-Fehler: " + e.getMessage()));
         } finally {
             isScanning = false;
             updateUI();
@@ -296,21 +311,21 @@ public class MainActivity extends Activity {
 
     private void displayScanResults() {
         String results = String.format(
-                "📊 Scan Complete\nPeak: %.1f dBm @ %.2f MHz\nRange: %.0f - %.0f MHz",
+                "📊 Scan abgeschlossen\nPeak: %.1f dBm @ %.2f MHz\nBereich: %.0f - %.0f MHz",
                 peakSignal,
                 peakFrequency / 1_000_000.0,
                 startFrequency / 1_000_000.0,
                 stopFrequency / 1_000_000.0
         );
         statusText.setText(results);
-        peakFrequencyText.setText(String.format("Peak: %.2f MHz | %.1f dBm", 
+        peakFrequencyText.setText(String.format("Peak: %.2f MHz | %.1f dBm",
                 peakFrequency / 1_000_000.0, peakSignal));
         progressBar.setProgress(100);
     }
 
     private void stopFrequencyScan() {
         isScanning = false;
-        statusText.setText("⏹️ Scan stopped");
+        statusText.setText("⏹️ Scan gestoppt");
         updateUI();
     }
 
@@ -338,7 +353,7 @@ public class MainActivity extends Activity {
 
     private void updateFrequencyDisplay() {
         frequencyText.setText(String.format(
-                "📡 Range: %.0f - %.0f MHz\nThreshold: %.1f dBm",
+                "Bereich: %.0f - %.0f MHz\nSchwelle: %.1f dBm",
                 startFrequency / 1_000_000.0,
                 stopFrequency / 1_000_000.0,
                 alarmThreshold
@@ -360,6 +375,32 @@ public class MainActivity extends Activity {
         stopButton.setEnabled(isScanning);
     }
 
+    private void applyPreset(String presetName) {
+        if (presetName.equals("FM 88-108 MHz")) {
+            startFrequency = 88_000_000L;
+            stopFrequency = 108_000_000L;
+            alarmThreshold = -55f;
+            scanStepKHz = 100;
+            updateUIValues();
+            saveSettings();
+            showToast("Preset FM 88-108 MHz aktiviert");
+            updateFrequencyDisplay();
+            return;
+        }
+
+        startFrequency = DEFAULT_START_FREQ;
+        stopFrequency = DEFAULT_STOP_FREQ;
+        alarmThreshold = DEFAULT_ALARM_THRESHOLD;
+        scanStepKHz = SCAN_STEP_KHZ;
+        updateUIValues();
+        saveSettings();
+        showToast("Preset zurückgesetzt");
+    }
+
+    private void showToast(String text) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -374,7 +415,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                         @NonNull int[] grantResults) {
+                                          @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 }
