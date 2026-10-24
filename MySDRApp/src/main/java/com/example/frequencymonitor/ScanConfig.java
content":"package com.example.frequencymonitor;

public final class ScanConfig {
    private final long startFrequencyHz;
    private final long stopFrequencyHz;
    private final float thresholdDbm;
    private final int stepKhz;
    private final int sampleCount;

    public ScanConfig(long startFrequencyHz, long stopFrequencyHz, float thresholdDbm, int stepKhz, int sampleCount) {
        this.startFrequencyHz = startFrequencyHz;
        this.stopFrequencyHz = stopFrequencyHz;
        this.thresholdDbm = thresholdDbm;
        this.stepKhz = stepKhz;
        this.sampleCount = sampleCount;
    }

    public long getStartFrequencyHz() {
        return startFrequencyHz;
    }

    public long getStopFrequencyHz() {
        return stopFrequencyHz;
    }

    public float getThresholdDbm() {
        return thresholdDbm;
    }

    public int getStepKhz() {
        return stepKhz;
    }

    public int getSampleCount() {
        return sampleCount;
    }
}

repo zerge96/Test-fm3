@@ -1,0 +1,77 @@
+package com.example.frequencymonitor;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import android.content.Context;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
+
+public final class SdrDeviceManager {
+    public static final int MAX_DONGLES = 2;
+    public static final long CHANNEL_BANDWIDTH_HZ = 2_500_000L;
+
+    private final Context appContext;
+    private final UsbManager usbManager;
+    private final List<RTLSDRDevice> connectedDevices = new ArrayList<>();
+
+    public SdrDeviceManager(Context context) {
+        this.appContext = context.getApplicationContext();
+        this.usbManager = (UsbManager) appContext.getSystemService(Context.USB_SERVICE);
+    }
+
+    public List<RTLSDRDevice> discoverSupportedDevices() {
+        connectedDevices.clear();
+        if (usbManager == null) {
+            return Collections.emptyList();
+        }
+
+        for (UsbDevice device : usbManager.getDeviceList().values()) {
+            if (!RTLSDRDevice.isSupportedDevice(device)) {
+                continue;
+            }
+
+            RTLSDRDevice rtlDevice = new RTLSDRDevice(device, usbManager);
+            if (rtlDevice.connect()) {
+                connectedDevices.add(rtlDevice);
+                if (connectedDevices.size() >= MAX_DONGLES) {
+                    break;
+                }
+            }
+        }
+
+        return new ArrayList<>(connectedDevices);
+    }
+
+    public boolean hasNativeBackend() {
+        if (connectedDevices.isEmpty()) {
+            return false;
+        }
+        for (RTLSDRDevice device : connectedDevices) {
+            if (!device.isHardwareReady()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public int getConnectedCount() {
+        return connectedDevices.size();
+    }
+
+    public boolean isSingleDongleMode() {
+        return connectedDevices.size() <= 1;
+    }
+
+    public List<RTLSDRDevice> getConnectedDevices() {
+        return new ArrayList<>(connectedDevices);
+    }
+
+    public void release() {
+        for (RTLSDRDevice device : connectedDevices) {
+            device.disconnect();
+        }
+        connectedDevices.clear();
+    }
+}
