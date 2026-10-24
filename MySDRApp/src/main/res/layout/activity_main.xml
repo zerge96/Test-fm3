@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#f5f5f5">
+    android:background="#eef2f7">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,7 +13,8 @@
         android:gravity="center_vertical"
         android:padding="12dp"
         android:background="#ffffff"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:elevation="2dp">
 
         <TextView
             android:layout_width="0dp"
@@ -21,7 +22,8 @@
             android:layout_weight="1"
             android:text="📡 Frequenzy Monitor V26"
             android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="#1f2937" />
 
         <ToggleButton
             android:id="@+id/alarmToggle"
@@ -47,13 +49,15 @@
         android:orientation="vertical"
         android:padding="12dp"
         android:background="#ffffff"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:elevation="2dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Status: "
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="#374151" />
 
         <TextView
             android:id="@+id/statusText"
@@ -61,14 +65,16 @@
             android:layout_height="wrap_content"
             android:text="Ready"
             android:textSize="14sp"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="4dp"
+            android:textColor="#111827" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Range: "
             android:textStyle="bold"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:textColor="#374151" />
 
         <TextView
             android:id="@+id/frequencyText"
@@ -76,7 +82,8 @@
             android:layout_height="wrap_content"
             android:text="380 - 385 MHz"
             android:textSize="14sp"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="4dp"
+            android:textColor="#111827" />
     </LinearLayout>
 
     <LinearLayout
@@ -85,20 +92,23 @@
         android:orientation="vertical"
         android:padding="12dp"
         android:background="#ffffff"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:elevation="2dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="📊 Signal Strength"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="#374151" />
 
         <TextView
             android:id="@+id/signalText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Current: -65.2 dBm"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:textColor="#111827" />
 
         <ProgressBar
             android:id="@+id/signalBar"
@@ -113,7 +123,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Peak: 382.45 MHz | -45 dBm"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:textColor="#111827" />
     </LinearLayout>
 
     <LinearLayout
@@ -122,13 +133,15 @@
         android:orientation="vertical"
         android:padding="12dp"
         android:background="#ffffff"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:elevation="2dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Progress"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="#374151" />
 
         <ProgressBar
             android:id="@+id/progressBar"
@@ -144,7 +157,8 @@
             android:layout_height="wrap_content"
             android:text="0%"
             android:layout_marginTop="4dp"
-            android:gravity="center" />
+            android:gravity="center"
+            android:textColor="#111827" />
     </LinearLayout>
 
     <LinearLayout
@@ -154,7 +168,8 @@
         android:padding="12dp"
         android:background="#ffffff"
         android:layout_marginBottom="8dp"
-        android:gravity="center">
+        android:gravity="center"
+        android:elevation="2dp">
 
         <Button
             android:id="@+id/scanButton"
@@ -180,7 +195,8 @@
         android:orientation="horizontal"
         android:padding="8dp"
         android:background="#ffffff"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:elevation="2dp">
 
         <Button
             android:id="@+id/deviceButton"
@@ -202,6 +218,13 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="TETRA Auto" />
+
+        <Button
+            android:id="@+id/regionButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Region" />
 
         <Button
             android:id="@+id/presetButton"
@@ -235,20 +258,23 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="12dp"
-            android:background="#ffffff">
+            android:background="#ffffff"
+            android:elevation="2dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="⚙️ Configuration"
                 android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:textColor="#374151" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Start (MHz):"
-                android:layout_marginTop="12dp" />
+                android:layout_marginTop="12dp"
+                android:textColor="#374151" />
 
             <EditText
                 android:id="@+id/startFreqEdit"
@@ -261,7 +287,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Stop (MHz):"
-                android:layout_marginTop="12dp" />
+                android:layout_marginTop="12dp"
+                android:textColor="#374151" />
 
             <EditText
                 android:id="@+id/stopFreqEdit"
@@ -274,7 +301,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Threshold (dBm):"
-                android:layout_marginTop="12dp" />
+                android:layout_marginTop="12dp"
+                android:textColor="#374151" />
 
             <EditText
                 android:id="@+id/thresholdEdit"
@@ -287,7 +315,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Step (KHz):"
-                android:layout_marginTop="12dp" />
+                android:layout_marginTop="12dp"
+                android:textColor="#374151" />
 
             <EditText
                 android:id="@+id/stepEdit"

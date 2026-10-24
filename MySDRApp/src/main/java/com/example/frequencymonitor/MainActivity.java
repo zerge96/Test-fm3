@@ -38,6 +38,10 @@ public class MainActivity extends Activity {
     public static final String MODULATION_AM = "AM";
     public static final String MODULATION_TETRA = "TETRA";
 
+    private static final String REGION_EU_GENERIC = "EU Generic";
+    private static final String REGION_LUX_CUSTOM = "Luxembourg";
+    private static final String REGION_CUSTOM = "Custom";
+
     private static final long DEFAULT_START_FREQ = 380_000_000L;
     private static final long DEFAULT_STOP_FREQ = 385_000_000L;
     private static final float DEFAULT_ALARM_THRESHOLD = -50.0f;
@@ -63,6 +67,7 @@ public class MainActivity extends Activity {
     private Button deviceButton;
     private Button modulationButton;
     private Button tetraModeButton;
+    private Button regionButton;
     private Button presetButton;
     private Button settingsButton;
     private Button aboutButton;
@@ -73,6 +78,7 @@ public class MainActivity extends Activity {
     private boolean isMuted = false;
     private boolean alarmEnabled = true;
     private boolean tetraAutoEnabled = true;
+    private String activeRegion = REGION_EU_GENERIC;
     private long startFrequency = DEFAULT_START_FREQ;
     private long stopFrequency = DEFAULT_STOP_FREQ;
     private float alarmThreshold = DEFAULT_ALARM_THRESHOLD;
@@ -106,6 +112,7 @@ public class MainActivity extends Activity {
         initializeAudio();
         connectToUSB();
         updateFrequencyDisplay();
+        updateRegionButtonText();
         updateTetraModeButton();
     }
 
@@ -128,6 +135,7 @@ public class MainActivity extends Activity {
         deviceButton = findViewById(R.id.deviceButton);
         modulationButton = findViewById(R.id.modulationButton);
         tetraModeButton = findViewById(R.id.tetraModeButton);
+        regionButton = findViewById(R.id.regionButton);
         presetButton = findViewById(R.id.presetButton);
         settingsButton = findViewById(R.id.settingsButton);
         aboutButton = findViewById(R.id.aboutButton);
@@ -143,6 +151,7 @@ public class MainActivity extends Activity {
         deviceButton.setOnClickListener(v -> showDeviceStatus());
         modulationButton.setOnClickListener(v -> cycleModulation());
         tetraModeButton.setOnClickListener(v -> toggleTetraAutoMode());
+        regionButton.setOnClickListener(v -> cycleRegionPreset());
         presetButton.setOnClickListener(v -> applyPreset(activeModulation));
         settingsButton.setOnClickListener(v -> showToast("Erweiterte Einstellungen: Gain, Band und Modulation werden hier ergänzt."));
         aboutButton.setOnClickListener(v -> showToast("Frequenzy Monitor: SDR-Experiment mit TETRA, FM und AM"));
@@ -151,6 +160,7 @@ public class MainActivity extends Activity {
         updateUI();
         updateModulationButtonText();
         updateTetraModeButton();
+        updateRegionButtonText();
     }
 
     private void loadPreferences() {
@@ -161,8 +171,12 @@ public class MainActivity extends Activity {
         scanStepKHz = prefs.getInt("step", SCAN_STEP_KHZ);
         activeModulation = prefs.getString("modulation", MODULATION_TETRA);
         tetraAutoEnabled = prefs.getBoolean("tetraAutoEnabled", true);
+        activeRegion = prefs.getString("region", REGION_EU_GENERIC);
         if (activeModulation == null || activeModulation.trim().isEmpty()) {
             activeModulation = MODULATION_TETRA;
+        }
+        if (activeRegion == null || activeRegion.trim().isEmpty()) {
+            activeRegion = REGION_EU_GENERIC;
         }
     }
 
@@ -187,6 +201,7 @@ public class MainActivity extends Activity {
             editor.putInt("step", scanStepKHz);
             editor.putString("modulation", activeModulation);
             editor.putBoolean("tetraAutoEnabled", tetraAutoEnabled);
+            editor.putString("region", activeRegion);
             editor.apply();
 
             Toast.makeText(this, "✅ Einstellungen gespeichert", Toast.LENGTH_SHORT).show();
@@ -305,13 +320,63 @@ public class MainActivity extends Activity {
 
         if (MODULATION_TETRA.equals(activeModulation)) {
             if (tetraAutoEnabled) {
-                applyPreset(MODULATION_TETRA);
+                applyRegionPreset(REGION_EU_GENERIC);
                 showToast("TETRA Auto-Range: EU-Generic 380-385 MHz");
             } else {
                 showToast("TETRA Auto-Range deaktiviert. Benutzerfrequenz bleibt aktiv.");
             }
         } else {
             showToast("TETRA Auto-Range: " + (tetraAutoEnabled ? "aktiv" : "deaktiviert"));
+        }
+    }
+
+    private void cycleRegionPreset() {
+        if (REGION_EU_GENERIC.equals(activeRegion)) {
+            activeRegion = REGION_LUX_CUSTOM;
+        } else if (REGION_LUX_CUSTOM.equals(activeRegion)) {
+            activeRegion = REGION_CUSTOM;
+        } else {
+            activeRegion = REGION_EU_GENERIC;
+        }
+
+        updateRegionButtonText();
+        applyRegionPreset(activeRegion);
+        showToast("Region: " + activeRegion);
+    }
+
+    private void applyRegionPreset(String region) {
+        if (REGION_EU_GENERIC.equals(region)) {
+            startFrequency = 380_000_000L;
+            stopFrequency = 385_000_000L;
+            alarmThreshold = -45f;
+            scanStepKHz = 25;
+            activeModulation = MODULATION_TETRA;
+            tetraAutoEnabled = true;
+        } else if (REGION_LUX_CUSTOM.equals(region)) {
+            startFrequency = 380_000_000L;
+            stopFrequency = 385_000_000L;
+            alarmThreshold = -45f;
+            scanStepKHz = 25;
+            activeModulation = MODULATION_TETRA;
+            tetraAutoEnabled = true;
+            showToast("Luxembourg custom preset aktiv – anpassbar über manuellen Bereich");
+        } else if (REGION_CUSTOM.equals(region)) {
+            tetraAutoEnabled = false;
+            activeModulation = MODULATION_TETRA;
+            showToast("Custom Region aktiv – nutze manuelle Frequenzen und eigene Scanbereiche");
+        }
+
+        updateUIValues();
+        updateModulationButtonText();
+        updateTetraModeButton();
+        updateRegionButtonText();
+        saveSettings();
+        updateFrequencyDisplay();
+    }
+
+    private void updateRegionButtonText() {
+        if (regionButton != null) {
+            regionButton.setText("Region: " + activeRegion);
         }
     }
 
@@ -460,7 +525,8 @@ public class MainActivity extends Activity {
 
     private void updateFrequencyDisplay() {
         frequencyText.setText(String.format(
-                "Modulation: %s\nBereich: %.0f - %.0f MHz\nSchwelle: %.1f dBm",
+                "Region: %s\nModulation: %s\nBereich: %.0f - %.0f MHz\nSchwelle: %.1f dBm",
+                activeRegion,
                 activeModulation,
                 startFrequency / 1_000_000.0,
                 stopFrequency / 1_000_000.0,
@@ -491,6 +557,7 @@ public class MainActivity extends Activity {
                 alarmThreshold = -45f;
                 scanStepKHz = 25;
                 activeModulation = MODULATION_TETRA;
+                activeRegion = REGION_EU_GENERIC;
                 updateUIValues();
                 saveSettings();
                 showToast("Preset TETRA aktiviert (EU-Generic 380-385 MHz)");
@@ -509,6 +576,7 @@ public class MainActivity extends Activity {
             alarmThreshold = -55f;
             scanStepKHz = 100;
             activeModulation = MODULATION_FM;
+            activeRegion = REGION_CUSTOM;
             updateUIValues();
             saveSettings();
             showToast("Preset FM 88-108 MHz aktiviert");
@@ -522,6 +590,7 @@ public class MainActivity extends Activity {
             alarmThreshold = -60f;
             scanStepKHz = 100;
             activeModulation = MODULATION_AM;
+            activeRegion = REGION_CUSTOM;
             updateUIValues();
             saveSettings();
             showToast("Preset AM aktiviert");
@@ -534,6 +603,7 @@ public class MainActivity extends Activity {
         alarmThreshold = DEFAULT_ALARM_THRESHOLD;
         scanStepKHz = SCAN_STEP_KHZ;
         activeModulation = MODULATION_TETRA;
+        activeRegion = REGION_EU_GENERIC;
         updateUIValues();
         saveSettings();
         updateFrequencyDisplay();
