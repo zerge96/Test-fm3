@@ -7,44 +7,80 @@ import android.util.Log;
 
 public class RTLSDRDevice {
     private static final String TAG = "RTLSDRDevice";
+    private static final int[] SUPPORTED_PRODUCT_IDS = {
+            0x2832,
+            0x2838,
+            0x2880,
+            0x2881,
+            0x2882,
+            0x2883
+    };
 
-    private final UsbDevice device;
+    public static final int MAX_BANDWIDTH_HZ = 2_500_000;
+
+    private final UsbDevice usbDevice;
     private final UsbManager usbManager;
-    private final Context context;
-    private boolean connected;
+    private boolean connected = false;
+    private boolean hardwareReady = false;
     private long centerFrequency = 380_000_000L;
     private int sampleRate = 2_400_000;
     private int gain = 450;
 
-    public RTLSDRDevice(UsbDevice device, UsbManager usbManager, Context context) {
-        this.device = device;
+    public RTLSDRDevice(UsbDevice usbDevice, UsbManager usbManager) {
+        this.usbDevice = usbDevice;
         this.usbManager = usbManager;
-        this.context = context.getApplicationContext();
+    }
+
+    public static boolean isSupportedDevice(UsbDevice device) {
+        if (device == null) {
+            return false;
+        }
+
+        if (device.getVendorId() != 0x0bda) {
+            return false;
+        }
+
+        for (int productId : SUPPORTED_PRODUCT_IDS) {
+            if (productId == device.getProductId()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean connect() {
-        if (device == null) {
+        if (usbDevice == null) {
             Log.w(TAG, "USB device is null");
             return false;
         }
 
-        if (usbManager != null && !usbManager.hasPermission(device)) {
-            Log.w(TAG, "No USB permission for device: " + device.getDeviceName());
+        if (usbManager != null && !usbManager.hasPermission(usbDevice)) {
+            Log.w(TAG, "No USB permission for device: " + usbDevice.getDeviceName());
             return false;
         }
 
         connected = true;
-        Log.d(TAG, "RTL-SDR connected: " + device.getDeviceName());
+        hardwareReady = false;
+        Log.d(TAG, "RTL-SDR USB device detected: " + usbDevice.getDeviceName());
         return true;
     }
 
     public void disconnect() {
         connected = false;
+        hardwareReady = false;
         Log.d(TAG, "RTL-SDR disconnected");
     }
 
     public boolean isConnected() {
         return connected;
+    }
+
+    public boolean isHardwareReady() {
+        return connected && hardwareReady;
+    }
+
+    public void setHardwareReady(boolean ready) {
+        this.hardwareReady = connected && ready;
     }
 
     public void setSampleRate(int sampleRateHz) {
@@ -61,14 +97,15 @@ public class RTLSDRDevice {
 
     public float readSignalStrength() {
         if (!connected) {
-            return -100.0f;
+            return Float.NaN;
+        }
+        if (!hardwareReady) {
+            Log.w(TAG, "RTL-SDR device connected but native hardware bridge is not active yet.");
+            return Float.NaN;
         }
 
-        // Demo fallback for emulation when no actual RTL-SDR hardware is attached.
-        double baseNoise = -68.0d;
-        double drift = Math.sin((centerFrequency / 1_000_000.0d) / 10.0d) * 6.0d;
-        double random = (Math.random() * 12.0d) - 6.0d;
-        return (float) (baseNoise + drift + random);
+        // Real SDR reads will be implemented here once the native bridge is connected.
+        return Float.NaN;
     }
 
     public long getCenterFrequency() {
@@ -81,5 +118,9 @@ public class RTLSDRDevice {
 
     public int getGain() {
         return gain;
+    }
+
+    public UsbDevice getUsbDevice() {
+        return usbDevice;
     }
 }
