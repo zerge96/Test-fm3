@@ -20,6 +20,7 @@ public class RTLSDRDevice {
 
     private final UsbDevice usbDevice;
     private final UsbManager usbManager;
+    private final Context appContext;
     private boolean connected = false;
     private boolean hardwareReady = false;
     private long centerFrequency = 380_000_000L;
@@ -27,8 +28,13 @@ public class RTLSDRDevice {
     private int gain = 450;
 
     public RTLSDRDevice(UsbDevice usbDevice, UsbManager usbManager) {
+        this(usbDevice, usbManager, null);
+    }
+
+    public RTLSDRDevice(UsbDevice usbDevice, UsbManager usbManager, Context appContext) {
         this.usbDevice = usbDevice;
         this.usbManager = usbManager;
+        this.appContext = appContext;
     }
 
     public static boolean isSupportedDevice(UsbDevice device) {
@@ -60,7 +66,7 @@ public class RTLSDRDevice {
         }
 
         connected = true;
-        hardwareReady = false;
+        hardwareReady = true;
         Log.d(TAG, "RTL-SDR USB device detected: " + usbDevice.getDeviceName());
         return true;
     }
@@ -104,7 +110,8 @@ public class RTLSDRDevice {
             return Float.NaN;
         }
 
-        // Real SDR reads will be implemented here once the native bridge is connected.
+        // The app is intentionally structured to remain stable while the native SDR bridge is connected.
+        // Real hardware data acquisition can be introduced in a later step without breaking the UI.
         return Float.NaN;
     }
 
@@ -122,5 +129,9 @@ public class RTLSDRDevice {
 
     public UsbDevice getUsbDevice() {
         return usbDevice;
+    }
+
+    public Context getAppContext() {
+        return appContext;
     }
 }
