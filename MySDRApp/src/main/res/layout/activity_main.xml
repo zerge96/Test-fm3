@@ -190,11 +190,18 @@
             android:text="Device" />
 
         <Button
+            android:id="@+id/modulationButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Mod: TETRA" />
+
+        <Button
             android:id="@+id/presetButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Presets" />
+            android:text="Preset" />
 
         <Button
             android:id="@+id/settingsButton"

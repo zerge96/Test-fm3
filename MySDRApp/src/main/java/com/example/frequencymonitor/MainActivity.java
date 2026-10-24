@@ -31,16 +31,21 @@ public class MainActivity extends Activity {
     private static final String TAG = "Frequenzy_Monitor_V26";
     private static final int PERMISSION_REQUEST_CODE = 102;
     private static final String PREFS_NAME = "FrequencyMonitorPrefs";
+    private static final int MAX_SUPPORTED_DEVICES = 2;
+    private static final int MAX_SCAN_BANDWIDTH_HZ = 2_500_000;
+
+    public static final String MODULATION_FM = "FM";
+    public static final String MODULATION_AM = "AM";
+    public static final String MODULATION_TETRA = "TETRA";
 
     // Default values
-    private static final long DEFAULT_START_FREQ = 380_000_000;  // 380 MHz
-    private static final long DEFAULT_STOP_FREQ = 385_000_000;   // 385 MHz
+    private static final long DEFAULT_START_FREQ = 380_000_000L; // 380 MHz
+    private static final long DEFAULT_STOP_FREQ = 385_000_000L;  // 385 MHz
     private static final float DEFAULT_ALARM_THRESHOLD = -50.0f; // dBm
-    private static final int SCAN_STEP_KHZ = 100;               // 100 KHz steps
-    private static final int SAMPLES_PER_FREQ = 10;             // 10 samples per frequency
-    private static final int SCAN_TIMEOUT_MS = 900;             // <1 second total scan
+    private static final int SCAN_STEP_KHZ = 100; // 100 KHz steps
+    private static final int SAMPLES_PER_FREQ = 10;
+    private static final int SCAN_TIMEOUT_MS = 900;
 
-    // UI Elements
     private TextView statusText;
     private TextView frequencyText;
     private TextView signalText;
@@ -57,13 +62,13 @@ public class MainActivity extends Activity {
     private Button stopButton;
     private Button saveButton;
     private Button deviceButton;
+    private Button modulationButton;
     private Button presetButton;
     private Button settingsButton;
     private Button aboutButton;
     private ToggleButton muteButton;
     private ToggleButton alarmToggle;
 
-    // State variables
     private boolean isScanning = false;
     private boolean isMuted = false;
     private boolean alarmEnabled = true;
@@ -71,21 +76,19 @@ public class MainActivity extends Activity {
     private long stopFrequency = DEFAULT_STOP_FREQ;
     private float alarmThreshold = DEFAULT_ALARM_THRESHOLD;
     private int scanStepKHz = SCAN_STEP_KHZ;
+    private String activeModulation = MODULATION_TETRA;
 
-    // Peak tracking
     private float peakSignal = -100.0f;
     private long peakFrequency = startFrequency;
     private final List<Float> signalHistory = new ArrayList<>();
     private static final int MAX_HISTORY = 50;
 
-    // Audio
     private ToneGenerator toneGenerator;
     private Handler handler;
     private AudioManager audioManager;
     private int originalVolume;
 
-    // SDR
-    private RTLSDRDevice rtlsdrDevice;
+    private final List<RTLSDRDevice> connectedDevices = new ArrayList<>();
     private boolean isConnected = false;
 
     @Override
@@ -120,12 +123,13 @@ public class MainActivity extends Activity {
         scanButton = findViewById(R.id.scanButton);
         stopButton = findViewById(R.id.stopButton);
         saveButton = findViewById(R.id.saveButton);
-        muteButton = findViewById(R.id.muteButton);
-        alarmToggle = findViewById(R.id.alarmToggle);
         deviceButton = findViewById(R.id.deviceButton);
+        modulationButton = findViewById(R.id.modulationButton);
         presetButton = findViewById(R.id.presetButton);
         settingsButton = findViewById(R.id.settingsButton);
         aboutButton = findViewById(R.id.aboutButton);
+        muteButton = findViewById(R.id.muteButton);
+        alarmToggle = findViewById(R.id.alarmToggle);
 
         scanButton.setOnClickListener(v -> startFrequencyScan());
         stopButton.setOnClickListener(v -> stopFrequencyScan());
@@ -133,13 +137,15 @@ public class MainActivity extends Activity {
         muteButton.setOnCheckedChangeListener((buttonView, isChecked) -> toggleMute(isChecked));
         alarmToggle.setOnCheckedChangeListener((buttonView, isChecked) -> alarmEnabled = isChecked);
 
-        deviceButton.setOnClickListener(v -> showToast("Gerätesteuerung: USB- und SD-Status werden hier überwacht."));
-        presetButton.setOnClickListener(v -> applyPreset("FM 88-108 MHz"));
-        settingsButton.setOnClickListener(v -> showToast("Einstellungen: mehr Optionen werden hier ergänzt."));
-        aboutButton.setOnClickListener(v -> showToast("Frequenzy Monitor: experimenteller SDR-Builder"));
+        deviceButton.setOnClickListener(v -> showDeviceStatus());
+        modulationButton.setOnClickListener(v -> cycleModulation());
+        presetButton.setOnClickListener(v -> applyPreset(activeModulation));
+        settingsButton.setOnClickListener(v -> showToast("Erweiterte Einstellungen: Gain, Band und Modulation werden hier ergänzt."));
+        aboutButton.setOnClickListener(v -> showToast("Frequenzy Monitor: SDR-Experiment mit TETRA, FM und AM"));
 
         updateUIValues();
         updateUI();
+        updateModulationButtonText();
     }
 
     private void loadPreferences() {
@@ -148,19 +154,23 @@ public class MainActivity extends Activity {
         stopFrequency = prefs.getLong("stopFreq", DEFAULT_STOP_FREQ);
         alarmThreshold = prefs.getFloat("threshold", DEFAULT_ALARM_THRESHOLD);
         scanStepKHz = prefs.getInt("step", SCAN_STEP_KHZ);
+        activeModulation = prefs.getString("modulation", MODULATION_TETRA);
+        if (activeModulation == null || activeModulation.trim().isEmpty()) {
+            activeModulation = MODULATION_TETRA;
+        }
     }
 
     private void updateUIValues() {
-        startFreqEdit.setText(String.valueOf(startFrequency / 1_000_000));
-        stopFreqEdit.setText(String.valueOf(stopFrequency / 1_000_000));
+        startFreqEdit.setText(String.valueOf(startFrequency / 1_000_000L));
+        stopFreqEdit.setText(String.valueOf(stopFrequency / 1_000_000L));
         thresholdEdit.setText(String.format("%.1f", alarmThreshold));
         stepEdit.setText(String.valueOf(scanStepKHz));
     }
 
     private void saveSettings() {
         try {
-            startFrequency = Long.parseLong(startFreqEdit.getText().toString()) * 1_000_000;
-            stopFrequency = Long.parseLong(stopFreqEdit.getText().toString()) * 1_000_000;
+            startFrequency = Long.parseLong(startFreqEdit.getText().toString()) * 1_000_000L;
+            stopFrequency = Long.parseLong(stopFreqEdit.getText().toString()) * 1_000_000L;
             alarmThreshold = Float.parseFloat(thresholdEdit.getText().toString());
             scanStepKHz = Integer.parseInt(stepEdit.getText().toString());
 
@@ -169,6 +179,7 @@ public class MainActivity extends Activity {
             editor.putLong("stopFreq", stopFrequency);
             editor.putFloat("threshold", alarmThreshold);
             editor.putInt("step", scanStepKHz);
+            editor.putString("modulation", activeModulation);
             editor.apply();
 
             Toast.makeText(this, "✅ Einstellungen gespeichert", Toast.LENGTH_SHORT).show();
@@ -205,20 +216,41 @@ public class MainActivity extends Activity {
                     return;
                 }
 
+                connectedDevices.clear();
+                List<UsbDevice> candidates = new ArrayList<>();
                 for (UsbDevice device : usbManager.getDeviceList().values()) {
-                    if (isRTLSDR(device)) {
-                        rtlsdrDevice = new RTLSDRDevice(device, usbManager, this);
-                        if (rtlsdrDevice.connect()) {
-                            isConnected = true;
-                            runOnUiThread(() -> {
-                                statusText.setText("✅ SDR erkannt");
-                                frequencyText.setText(String.format("Gerät: %s\nBereich: %.0f - %.0f MHz", device.getDeviceName(), startFrequency / 1_000_000.0, stopFrequency / 1_000_000.0));
-                            });
-                            Log.d(TAG, "SDR device connected: " + device.getDeviceName());
-                            return;
-                        }
+                    if (RTLSDRDevice.isSupportedDevice(device)) {
+                        candidates.add(device);
                     }
                 }
+
+                int count = 0;
+                for (UsbDevice device : candidates) {
+                    if (count >= MAX_SUPPORTED_DEVICES) {
+                        break;
+                    }
+
+                    RTLSDRDevice rtlsdrDevice = new RTLSDRDevice(device, usbManager, this);
+                    if (rtlsdrDevice.connect()) {
+                        connectedDevices.add(rtlsdrDevice);
+                        count++;
+                    }
+                }
+
+                isConnected = !connectedDevices.isEmpty();
+                if (isConnected) {
+                    runOnUiThread(() -> {
+                        statusText.setText("✅ " + connectedDevices.size() + " SDR-Gerät(e) erkannt");
+                        frequencyText.setText(String.format("Modulation: %s\nGeräte: %d\nBereich: %.0f - %.0f MHz",
+                                activeModulation,
+                                connectedDevices.size(),
+                                startFrequency / 1_000_000.0,
+                                stopFrequency / 1_000_000.0));
+                    });
+                    Log.d(TAG, "Detected SDR device count: " + connectedDevices.size());
+                    return;
+                }
+
                 runOnUiThread(() -> statusText.setText("❌ Kein kompatibles SDR gefunden"));
             } catch (Exception e) {
                 Log.e(TAG, "USB connection error", e);
@@ -227,13 +259,47 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private boolean isRTLSDR(UsbDevice device) {
-        return (device.getVendorId() == 0x0bda &&
-                (device.getProductId() == 0x2832 || device.getProductId() == 0x2838 || device.getProductId() == 0x2880 || device.getProductId() == 0x2881 || device.getProductId() == 0x2882 || device.getProductId() == 0x2883));
+    private void showDeviceStatus() {
+        if (connectedDevices.isEmpty()) {
+            showToast("Keine kompatiblen Dongles erkannt.");
+            return;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < connectedDevices.size(); i++) {
+            RTLSDRDevice device = connectedDevices.get(i);
+            builder.append("Dongle ")
+                    .append(i + 1)
+                    .append(": ")
+                    .append(device.getUsbDevice() != null ? device.getUsbDevice().getDeviceName() : "USB")
+                    .append("\n");
+        }
+        builder.append("Max. Scan pro Dongle: 2.5 MHz");
+        showToast(builder.toString());
+    }
+
+    private void cycleModulation() {
+        if (MODULATION_TETRA.equals(activeModulation)) {
+            activeModulation = MODULATION_FM;
+        } else if (MODULATION_FM.equals(activeModulation)) {
+            activeModulation = MODULATION_AM;
+        } else {
+            activeModulation = MODULATION_TETRA;
+        }
+
+        updateModulationButtonText();
+        applyPreset(activeModulation);
+        showToast("Modulation: " + activeModulation);
+    }
+
+    private void updateModulationButtonText() {
+        if (modulationButton != null) {
+            modulationButton.setText("Mod: " + activeModulation);
+        }
     }
 
     private void startFrequencyScan() {
-        if (!isConnected || rtlsdrDevice == null) {
+        if (connectedDevices.isEmpty()) {
             Toast.makeText(this, "❌ SDR nicht verbunden", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -251,55 +317,68 @@ public class MainActivity extends Activity {
 
     private void performFrequencyScan() {
         try {
-            rtlsdrDevice.setSampleRate(2_400_000);
-            rtlsdrDevice.setGain(450);
+            long totalRange = stopFrequency - startFrequency;
+            int deviceCount = Math.max(1, Math.min(connectedDevices.size(), MAX_SUPPORTED_DEVICES));
+            long segmentSize = Math.min(MAX_SCAN_BANDWIDTH_HZ, Math.max(1, totalRange / deviceCount));
+            long currentStart = startFrequency;
 
-            long frequencyRange = stopFrequency - startFrequency;
-            long frequencyStepHz = scanStepKHz * 1000L;
-            int totalSteps = (int) (frequencyRange / frequencyStepHz) + 1;
-            long timePerStep = Math.max(5, SCAN_TIMEOUT_MS / totalSteps);
+            for (int deviceIndex = 0; deviceIndex < connectedDevices.size() && isScanning; deviceIndex++) {
+                RTLSDRDevice device = connectedDevices.get(deviceIndex);
+                long deviceStart = currentStart;
+                long deviceStop = Math.min(deviceStart + segmentSize, stopFrequency);
 
-            int currentStep = 0;
-            for (long freq = startFrequency; freq <= stopFrequency && isScanning; freq += frequencyStepHz) {
-                rtlsdrDevice.setCenterFrequency(freq);
-
-                float maxSignal = -100.0f;
-                for (int i = 0; i < SAMPLES_PER_FREQ && isScanning; i++) {
-                    float signal = rtlsdrDevice.readSignalStrength();
-                    if (signal > maxSignal) maxSignal = signal;
-                    Thread.sleep(Math.max(1, timePerStep / SAMPLES_PER_FREQ));
+                if (deviceStop <= deviceStart) {
+                    deviceStop = stopFrequency;
                 }
 
-                if (maxSignal > peakSignal) {
-                    peakSignal = maxSignal;
-                    peakFrequency = freq;
+                device.setSampleRate(2_400_000);
+                device.setGain(450);
+                device.setCenterFrequency(deviceStart);
+
+                long scanStop = Math.min(deviceStop, stopFrequency);
+                for (long freq = deviceStart; freq <= scanStop && isScanning; freq += scanStepKHz * 1000L) {
+                    device.setCenterFrequency(freq);
+                    float maxSignal = -100.0f;
+                    for (int i = 0; i < SAMPLES_PER_FREQ && isScanning; i++) {
+                        float signal = device.readSignalStrength();
+                        if (signal > maxSignal) maxSignal = signal;
+                        Thread.sleep(Math.max(1, SCAN_TIMEOUT_MS / SAMPLES_PER_FREQ));
+                    }
+
+                    if (maxSignal > peakSignal) {
+                        peakSignal = maxSignal;
+                        peakFrequency = freq;
+                    }
+
+                    signalHistory.add(maxSignal);
+                    if (signalHistory.size() > MAX_HISTORY) {
+                        signalHistory.remove(0);
+                    }
+
+                    final int progress = (int) ((float) (freq - startFrequency) / totalRange * 100.0f);
+                    final float signal = maxSignal;
+                    runOnUiThread(() -> {
+                        progressBar.setProgress(progress);
+                        signalText.setText(String.format("Aktuell: %.1f dBm (%s)", signal, activeModulation));
+                        updateSignalBar(signal);
+                    });
+
+                    if (maxSignal > alarmThreshold && alarmEnabled && !isMuted) {
+                        playAlarm();
+                        runOnUiThread(() -> statusText.setText(String.format("⚠️ Alarm: %.1f dBm @ %.2f MHz [%s]",
+                                maxSignal, freq / 1_000_000.0, activeModulation)));
+                    }
                 }
 
-                signalHistory.add(maxSignal);
-                if (signalHistory.size() > MAX_HISTORY) {
-                    signalHistory.remove(0);
+                currentStart = scanStop + 1;
+                if (currentStart >= stopFrequency) {
+                    break;
                 }
-
-                final int progress = (int) ((float) currentStep / totalSteps * 100);
-                final float signal = maxSignal;
-                runOnUiThread(() -> {
-                    progressBar.setProgress(progress);
-                    signalText.setText(String.format("Aktuell: %.1f dBm", signal));
-                    updateSignalBar(signal);
-                });
-
-                if (maxSignal > alarmThreshold && alarmEnabled && !isMuted) {
-                    playAlarm();
-                    runOnUiThread(() -> statusText.setText(String.format("⚠️ Alarm: %.1f dBm @ %.2f MHz", maxSignal, freq / 1_000_000.0)));
-                }
-
-                currentStep++;
             }
 
             if (isScanning) {
                 runOnUiThread(this::displayScanResults);
             }
-
         } catch (Exception e) {
             Log.e(TAG, "Scan error", e);
             runOnUiThread(() -> statusText.setText("❌ Scan-Fehler: " + e.getMessage()));
@@ -311,15 +390,14 @@ public class MainActivity extends Activity {
 
     private void displayScanResults() {
         String results = String.format(
-                "📊 Scan abgeschlossen\nPeak: %.1f dBm @ %.2f MHz\nBereich: %.0f - %.0f MHz",
+                "📊 Scan abgeschlossen\nPeak: %.1f dBm @ %.2f MHz\nModulation: %s\nGeräte: %d",
                 peakSignal,
                 peakFrequency / 1_000_000.0,
-                startFrequency / 1_000_000.0,
-                stopFrequency / 1_000_000.0
+                activeModulation,
+                connectedDevices.size()
         );
         statusText.setText(results);
-        peakFrequencyText.setText(String.format("Peak: %.2f MHz | %.1f dBm",
-                peakFrequency / 1_000_000.0, peakSignal));
+        peakFrequencyText.setText(String.format("Peak: %.2f MHz | %.1f dBm", peakFrequency / 1_000_000.0, peakSignal));
         progressBar.setProgress(100);
     }
 
@@ -353,7 +431,8 @@ public class MainActivity extends Activity {
 
     private void updateFrequencyDisplay() {
         frequencyText.setText(String.format(
-                "Bereich: %.0f - %.0f MHz\nSchwelle: %.1f dBm",
+                "Modulation: %s\nBereich: %.0f - %.0f MHz\nSchwelle: %.1f dBm",
+                activeModulation,
                 startFrequency / 1_000_000.0,
                 stopFrequency / 1_000_000.0,
                 alarmThreshold
@@ -376,14 +455,41 @@ public class MainActivity extends Activity {
     }
 
     private void applyPreset(String presetName) {
-        if (presetName.equals("FM 88-108 MHz")) {
+        if (MODULATION_TETRA.equalsIgnoreCase(presetName)) {
+            startFrequency = 380_000_000L;
+            stopFrequency = 385_000_000L;
+            alarmThreshold = -45f;
+            scanStepKHz = 25;
+            activeModulation = MODULATION_TETRA;
+            updateUIValues();
+            saveSettings();
+            showToast("Preset TETRA aktiviert");
+            updateFrequencyDisplay();
+            return;
+        }
+
+        if (MODULATION_FM.equalsIgnoreCase(presetName)) {
             startFrequency = 88_000_000L;
             stopFrequency = 108_000_000L;
             alarmThreshold = -55f;
             scanStepKHz = 100;
+            activeModulation = MODULATION_FM;
             updateUIValues();
             saveSettings();
             showToast("Preset FM 88-108 MHz aktiviert");
+            updateFrequencyDisplay();
+            return;
+        }
+
+        if (MODULATION_AM.equalsIgnoreCase(presetName)) {
+            startFrequency = 530_000L;
+            stopFrequency = 1700_000L;
+            alarmThreshold = -60f;
+            scanStepKHz = 100;
+            activeModulation = MODULATION_AM;
+            updateUIValues();
+            saveSettings();
+            showToast("Preset AM aktiviert");
             updateFrequencyDisplay();
             return;
         }
@@ -392,9 +498,10 @@ public class MainActivity extends Activity {
         stopFrequency = DEFAULT_STOP_FREQ;
         alarmThreshold = DEFAULT_ALARM_THRESHOLD;
         scanStepKHz = SCAN_STEP_KHZ;
+        activeModulation = MODULATION_TETRA;
         updateUIValues();
         saveSettings();
-        showToast("Preset zurückgesetzt");
+        updateFrequencyDisplay();
     }
 
     private void showToast(String text) {
@@ -405,9 +512,10 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         isScanning = false;
-        if (rtlsdrDevice != null) {
-            rtlsdrDevice.disconnect();
+        for (RTLSDRDevice device : connectedDevices) {
+            device.disconnect();
         }
+        connectedDevices.clear();
         if (toneGenerator != null) {
             toneGenerator.release();
         }
