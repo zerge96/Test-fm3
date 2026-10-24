@@ -1,0 +1,37 @@
+package com.example.frequencymonitor;
+
+public final class ScanConfig {
+    private final long startFrequencyHz;
+    private final long stopFrequencyHz;
+    private final float thresholdDbm;
+    private final int stepKhz;
+    private final int sampleCount;
+
+    public ScanConfig(long startFrequencyHz, long stopFrequencyHz, float thresholdDbm, int stepKhz, int sampleCount) {
+        this.startFrequencyHz = startFrequencyHz;
+        this.stopFrequencyHz = stopFrequencyHz;
+        this.thresholdDbm = thresholdDbm;
+        this.stepKhz = stepKhz;
+        this.sampleCount = sampleCount;
+    }
+
+    public long getStartFrequencyHz() {
+        return startFrequencyHz;
+    }
+
+    public long getStopFrequencyHz() {
+        return stopFrequencyHz;
+    }
+
+    public float getThresholdDbm() {
+        return thresholdDbm;
+    }
+
+    public int getStepKhz() {
+        return stepKhz;
+    }
+
+    public int getSampleCount() {
+        return sampleCount;
+    }
+}

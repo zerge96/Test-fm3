@@ -1,0 +1,307 @@
+package com.example.frequencymonitor;
+
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.ToggleButton;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "Frequenzy_Monitor";
+    public static final String ACTION_USB_PERMISSION = "com.example.frequencymonitor.USB_PERMISSION";
+
+    private static final long DEFAULT_START_FREQ = 380_000_000L;
+    private static final long DEFAULT_STOP_FREQ = 385_000_000L;
+    private static final float DEFAULT_ALARM_THRESHOLD = -50.0f;
+    private static final int DEFAULT_STEP_KHZ = 100;
+
+    private TextView statusText;
+    private TextView frequencyText;
+    private TextView signalText;
+    private TextView peakFrequencyText;
+    private ProgressBar progressBar;
+    private ProgressBar signalBar;
+
+    private EditText startFreqEdit;
+    private EditText stopFreqEdit;
+    private EditText thresholdEdit;
+    private EditText stepEdit;
+
+    private Button scanButton;
+    private Button stopButton;
+    private Button saveButton;
+    private ToggleButton muteButton;
+    private ToggleButton alarmToggle;
+
+    private boolean isScanning = false;
+    private boolean alarmEnabled = true;
+    private boolean isMuted = false;
+    private long startFrequency = DEFAULT_START_FREQ;
+    private long stopFrequency = DEFAULT_STOP_FREQ;
+    private float alarmThreshold = DEFAULT_ALARM_THRESHOLD;
+    private int stepKhz = DEFAULT_STEP_KHZ;
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private SdrDeviceManager deviceManager;
+    private RTLSDRDevice activeDevice;
+    private SdrScanEngine scanEngine;
+
+    private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (ACTION_USB_PERMISSION.equals(action)) {
+                boolean granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
+                UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                if (granted && device != null) {
+                    statusText.setText("✅ USB permission granted.");
+                    connectToUSB();
+                } else {
+                    statusText.setText("❌ USB permission denied for RTL-SDR device.");
+                }
+            } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
+                connectToUSB();
+            } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+                if (activeDevice != null && activeDevice.isConnected()) {
+                    activeDevice.disconnect();
+                    statusText.setText("⚠️ RTL-SDR disconnected.");
+                }
+                updateState();
+            }
+        }
+    };
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        initUi();
+        loadPreferences();
+        applyUiValues();
+        registerReceiver();
+        deviceManager = new SdrDeviceManager(this);
+        connectToUSB();
+    }
+
+    private void initUi() {
+        statusText = findViewById(R.id.statusText);
+        frequencyText = findViewById(R.id.frequencyText);
+        signalText = findViewById(R.id.signalText);
+        peakFrequencyText = findViewById(R.id.peakFrequencyText);
+        progressBar = findViewById(R.id.progressBar);
+        signalBar = findViewById(R.id.signalBar);
+
+        startFreqEdit = findViewById(R.id.startFreqEdit);
+        stopFreqEdit = findViewById(R.id.stopFreqEdit);
+        thresholdEdit = findViewById(R.id.thresholdEdit);
+        stepEdit = findViewById(R.id.stepEdit);
+
+        scanButton = findViewById(R.id.scanButton);
+        stopButton = findViewById(R.id.stopButton);
+        saveButton = findViewById(R.id.saveButton);
+        muteButton = findViewById(R.id.muteButton);
+        alarmToggle = findViewById(R.id.alarmToggle);
+
+        scanButton.setOnClickListener(v -> startScan());
+        stopButton.setOnClickListener(v -> stopScan());
+        saveButton.setOnClickListener(v -> saveSettings());
+        muteButton.setOnCheckedChangeListener((buttonView, checked) -> isMuted = checked);
+        alarmToggle.setOnCheckedChangeListener((buttonView, checked) -> alarmEnabled = checked);
+    }
+
+    private void loadPreferences() {
+        android.content.SharedPreferences prefs = getSharedPreferences("FrequencyMonitorPrefs", MODE_PRIVATE);
+        startFrequency = prefs.getLong("start_freq", DEFAULT_START_FREQ);
+        stopFrequency = prefs.getLong("stop_freq", DEFAULT_STOP_FREQ);
+        alarmThreshold = prefs.getFloat("threshold", DEFAULT_ALARM_THRESHOLD);
+        stepKhz = prefs.getInt("step_khz", DEFAULT_STEP_KHZ);
+    }
+
+    private void applyUiValues() {
+        startFreqEdit.setText(String.valueOf(startFrequency / 1_000_000L));
+        stopFreqEdit.setText(String.valueOf(stopFrequency / 1_000_000L));
+        thresholdEdit.setText(String.valueOf(alarmThreshold));
+        stepEdit.setText(String.valueOf(stepKhz));
+        updateFrequencyDisplay();
+    }
+
+    private void saveSettings() {
+        try {
+            long newStart = Long.parseLong(startFreqEdit.getText().toString()) * 1_000_000L;
+            long newStop = Long.parseLong(stopFreqEdit.getText().toString()) * 1_000_000L;
+            float newThreshold = Float.parseFloat(thresholdEdit.getText().toString());
+            int newStep = Integer.parseInt(stepEdit.getText().toString());
+
+            if (newStart >= newStop) {
+                Toast.makeText(this, "Start frequency must be lower than stop frequency.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            startFrequency = newStart;
+            stopFrequency = newStop;
+            alarmThreshold = newThreshold;
+            stepKhz = newStep;
+
+            android.content.SharedPreferences.Editor editor = getSharedPreferences("FrequencyMonitorPrefs", MODE_PRIVATE).edit();
+            editor.putLong("start_freq", startFrequency);
+            editor.putLong("stop_freq", stopFrequency);
+            editor.putFloat("threshold", alarmThreshold);
+            editor.putInt("step_khz", stepKhz);
+            editor.apply();
+
+            updateFrequencyDisplay();
+            Toast.makeText(this, "Settings saved.", Toast.LENGTH_SHORT).show();
+        } catch (NumberFormatException ex) {
+            Toast.makeText(this, "Invalid numeric input.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateFrequencyDisplay() {
+        frequencyText.setText(String.format("Range: %.2f - %.2f MHz\nThreshold: %.1f dBm",
+                startFrequency / 1_000_000.0, stopFrequency / 1_000_000.0, alarmThreshold));
+    }
+
+    private void registerReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_USB_PERMISSION);
+        filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+        filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+        registerReceiver(usbReceiver, filter);
+    }
+
+    private void connectToUSB() {
+        if (deviceManager == null) {
+            deviceManager = new SdrDeviceManager(this);
+        }
+
+        List<RTLSDRDevice> devices = deviceManager.discoverSupportedDevices();
+        if (devices.isEmpty()) {
+            activeDevice = null;
+            statusText.setText("❌ No supported RTL-SDR device attached.");
+            updateState();
+            return;
+        }
+
+        activeDevice = devices.get(0);
+        if (!activeDevice.isHardwareReady()) {
+            statusText.setText("✅ RTL-SDR USB device detected. Waiting for native measurement backend.");
+        } else {
+            statusText.setText("✅ RTL-SDR measurement backend active.");
+        }
+        updateState();
+    }
+
+    private void startScan() {
+        if (activeDevice == null || !activeDevice.isConnected()) {
+            Toast.makeText(this, "No RTL-SDR device connected.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!activeDevice.isHardwareReady()) {
+            Toast.makeText(this, "Real SDR backend not active yet. Hardware bridge required.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        isScanning = true;
+        scanEngine = new SdrScanEngine(deviceManager.getConnectedDevices(), new SdrScanEngine.Listener() {
+            @Override
+            public void onProgress(int progressPercent, float currentDbm) {
+                progressBar.setProgress(progressPercent);
+                signalText.setText(String.format("Current: %.1f dBm", currentDbm));
+                signalBar.setProgress(Math.max(0, Math.min(100, (int) ((currentDbm + 100.0f) * 0.5f))));
+            }
+
+            @Override
+            public void onComplete(ScanResult result) {
+                isScanning = false;
+                statusText.setText(String.format("📡 Scan complete\nPeak: %.1f dBm @ %.2f MHz",
+                        result.peakDbm, result.peakFrequencyHz / 1_000_000.0));
+                peakFrequencyText.setText(String.format("Peak: %.2f MHz | %.1f dBm",
+                        result.peakFrequencyHz / 1_000_000.0, result.peakDbm));
+                progressBar.setProgress(100);
+                updateState();
+            }
+
+            @Override
+            public void onError(String message) {
+                isScanning = false;
+                statusText.setText("❌ " + message);
+                updateState();
+            }
+        });
+
+        SdrScanEngine engine = scanEngine;
+        ScanConfig config = new ScanConfig(startFrequency, stopFrequency, alarmThreshold, stepKhz, 1);
+        engine.start(config);
+        statusText.setText("🔎 Scanning spectrum...");
+        updateState();
+    }
+
+    private void stopScan() {
+        if (scanEngine != null) {
+            scanEngine.stop();
+        }
+        isScanning = false;
+        statusText.setText("⏹️ Scan stopped.");
+        updateState();
+    }
+
+    private void updateState() {
+        scanButton.setEnabled(!isScanning && activeDevice != null && activeDevice.isConnected() && activeDevice.isHardwareReady());
+        stopButton.setEnabled(isScanning);
+        saveButton.setEnabled(!isScanning);
+        startFreqEdit.setEnabled(!isScanning);
+        stopFreqEdit.setEnabled(!isScanning);
+        thresholdEdit.setEnabled(!isScanning);
+        stepEdit.setEnabled(!isScanning);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            unregisterReceiver(usbReceiver);
+        } catch (IllegalArgumentException ignored) {
+            Log.d(TAG, "USB receiver already unregistered");
+        }
+        if (scanEngine != null) {
+            scanEngine.stop();
+        }
+        if (deviceManager != null) {
+            deviceManager.release();
+        }
+    }
+
+    private void requestPermissionIfNeeded(UsbDevice device) {
+        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        if (usbManager == null) {
+            return;
+        }
+        if (usbManager.hasPermission(device)) {
+            connectToUSB();
+            return;
+        }
+
+        Intent intent = new Intent(ACTION_USB_PERMISSION);
+        PendingIntent permissionIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0));
+        usbManager.requestPermission(device, permissionIntent);
+    }
+}
