@@ -12,13 +12,11 @@ public final class SdrDeviceManager {
     public static final int MAX_DONGLES = 2;
     public static final long CHANNEL_BANDWIDTH_HZ = 2_500_000L;
 
-    private final Context appContext;
     private final UsbManager usbManager;
     private final List<RTLSDRDevice> connectedDevices = new ArrayList<>();
 
     public SdrDeviceManager(Context context) {
-        this.appContext = context.getApplicationContext();
-        this.usbManager = (UsbManager) appContext.getSystemService(Context.USB_SERVICE);
+        this.usbManager = (UsbManager) context.getApplicationContext().getSystemService(Context.USB_SERVICE);
     }
 
     public List<RTLSDRDevice> discoverSupportedDevices() {

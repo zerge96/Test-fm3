@@ -1,0 +1,17 @@
+package com.example.frequencymonitor;
+
+public final class ScanResult {
+    public final float peakDbm;
+    public final long peakFrequencyHz;
+    public final float currentDbm;
+    public final int channelIndex;
+    public final String status;
+
+    public ScanResult(float peakDbm, long peakFrequencyHz, float currentDbm, int channelIndex, String status) {
+        this.peakDbm = peakDbm;
+        this.peakFrequencyHz = peakFrequencyHz;
+        this.currentDbm = currentDbm;
+        this.channelIndex = channelIndex;
+        this.status = status;
+    }
+}
