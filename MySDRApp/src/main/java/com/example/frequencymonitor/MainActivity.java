@@ -38,11 +38,10 @@ public class MainActivity extends Activity {
     public static final String MODULATION_AM = "AM";
     public static final String MODULATION_TETRA = "TETRA";
 
-    // Default values
-    private static final long DEFAULT_START_FREQ = 380_000_000L; // 380 MHz
-    private static final long DEFAULT_STOP_FREQ = 385_000_000L;  // 385 MHz
-    private static final float DEFAULT_ALARM_THRESHOLD = -50.0f; // dBm
-    private static final int SCAN_STEP_KHZ = 100; // 100 KHz steps
+    private static final long DEFAULT_START_FREQ = 380_000_000L;
+    private static final long DEFAULT_STOP_FREQ = 385_000_000L;
+    private static final float DEFAULT_ALARM_THRESHOLD = -50.0f;
+    private static final int SCAN_STEP_KHZ = 100;
     private static final int SAMPLES_PER_FREQ = 10;
     private static final int SCAN_TIMEOUT_MS = 900;
 
@@ -63,6 +62,7 @@ public class MainActivity extends Activity {
     private Button saveButton;
     private Button deviceButton;
     private Button modulationButton;
+    private Button tetraModeButton;
     private Button presetButton;
     private Button settingsButton;
     private Button aboutButton;
@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
     private boolean isScanning = false;
     private boolean isMuted = false;
     private boolean alarmEnabled = true;
+    private boolean tetraAutoEnabled = true;
     private long startFrequency = DEFAULT_START_FREQ;
     private long stopFrequency = DEFAULT_STOP_FREQ;
     private float alarmThreshold = DEFAULT_ALARM_THRESHOLD;
@@ -105,6 +106,7 @@ public class MainActivity extends Activity {
         initializeAudio();
         connectToUSB();
         updateFrequencyDisplay();
+        updateTetraModeButton();
     }
 
     private void initializeUI() {
@@ -125,6 +127,7 @@ public class MainActivity extends Activity {
         saveButton = findViewById(R.id.saveButton);
         deviceButton = findViewById(R.id.deviceButton);
         modulationButton = findViewById(R.id.modulationButton);
+        tetraModeButton = findViewById(R.id.tetraModeButton);
         presetButton = findViewById(R.id.presetButton);
         settingsButton = findViewById(R.id.settingsButton);
         aboutButton = findViewById(R.id.aboutButton);
@@ -139,6 +142,7 @@ public class MainActivity extends Activity {
 
         deviceButton.setOnClickListener(v -> showDeviceStatus());
         modulationButton.setOnClickListener(v -> cycleModulation());
+        tetraModeButton.setOnClickListener(v -> toggleTetraAutoMode());
         presetButton.setOnClickListener(v -> applyPreset(activeModulation));
         settingsButton.setOnClickListener(v -> showToast("Erweiterte Einstellungen: Gain, Band und Modulation werden hier ergänzt."));
         aboutButton.setOnClickListener(v -> showToast("Frequenzy Monitor: SDR-Experiment mit TETRA, FM und AM"));
@@ -146,6 +150,7 @@ public class MainActivity extends Activity {
         updateUIValues();
         updateUI();
         updateModulationButtonText();
+        updateTetraModeButton();
     }
 
     private void loadPreferences() {
@@ -155,6 +160,7 @@ public class MainActivity extends Activity {
         alarmThreshold = prefs.getFloat("threshold", DEFAULT_ALARM_THRESHOLD);
         scanStepKHz = prefs.getInt("step", SCAN_STEP_KHZ);
         activeModulation = prefs.getString("modulation", MODULATION_TETRA);
+        tetraAutoEnabled = prefs.getBoolean("tetraAutoEnabled", true);
         if (activeModulation == null || activeModulation.trim().isEmpty()) {
             activeModulation = MODULATION_TETRA;
         }
@@ -180,6 +186,7 @@ public class MainActivity extends Activity {
             editor.putFloat("threshold", alarmThreshold);
             editor.putInt("step", scanStepKHz);
             editor.putString("modulation", activeModulation);
+            editor.putBoolean("tetraAutoEnabled", tetraAutoEnabled);
             editor.apply();
 
             Toast.makeText(this, "✅ Einstellungen gespeichert", Toast.LENGTH_SHORT).show();
@@ -290,6 +297,28 @@ public class MainActivity extends Activity {
         updateModulationButtonText();
         applyPreset(activeModulation);
         showToast("Modulation: " + activeModulation);
+    }
+
+    private void toggleTetraAutoMode() {
+        tetraAutoEnabled = !tetraAutoEnabled;
+        updateTetraModeButton();
+
+        if (MODULATION_TETRA.equals(activeModulation)) {
+            if (tetraAutoEnabled) {
+                applyPreset(MODULATION_TETRA);
+                showToast("TETRA Auto-Range: EU-Generic 380-385 MHz");
+            } else {
+                showToast("TETRA Auto-Range deaktiviert. Benutzerfrequenz bleibt aktiv.");
+            }
+        } else {
+            showToast("TETRA Auto-Range: " + (tetraAutoEnabled ? "aktiv" : "deaktiviert"));
+        }
+    }
+
+    private void updateTetraModeButton() {
+        if (tetraModeButton != null) {
+            tetraModeButton.setText(tetraAutoEnabled ? "TETRA Auto" : "TETRA Custom");
+        }
     }
 
     private void updateModulationButtonText() {
@@ -456,14 +485,20 @@ public class MainActivity extends Activity {
 
     private void applyPreset(String presetName) {
         if (MODULATION_TETRA.equalsIgnoreCase(presetName)) {
-            startFrequency = 380_000_000L;
-            stopFrequency = 385_000_000L;
-            alarmThreshold = -45f;
-            scanStepKHz = 25;
+            if (tetraAutoEnabled) {
+                startFrequency = 380_000_000L;
+                stopFrequency = 385_000_000L;
+                alarmThreshold = -45f;
+                scanStepKHz = 25;
+                activeModulation = MODULATION_TETRA;
+                updateUIValues();
+                saveSettings();
+                showToast("Preset TETRA aktiviert (EU-Generic 380-385 MHz)");
+                updateFrequencyDisplay();
+                return;
+            }
+
             activeModulation = MODULATION_TETRA;
-            updateUIValues();
-            saveSettings();
-            showToast("Preset TETRA aktiviert");
             updateFrequencyDisplay();
             return;
         }
